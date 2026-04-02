@@ -20,16 +20,17 @@ ctk.deactivate_automatic_dpi_awareness()
 
 
 class Run:
-    def __init__(self, start_time: datetime.datetime = None):
+    def __init__(self, save_dir: Path, start_time: datetime.datetime = None):
         self.events = []
         self.start_time = start_time
+        self.save_dir = save_dir
 
     def save_as(self, path: Path):
         old = self.save()
         os.rename(old, path)
 
     def save(self) -> Path:
-        path = Path(self.start_time.strftime("%Y_%m_%d_%H_%M_%S.csv"))
+        path = self.save_dir / self.start_time.strftime("%Y_%m_%d_%H_%M_%S.csv")
         with open(path, "w+") as f:
             f.write(f"{self.start_time}, {'Start'}\n")
             for m, d in self.events:
@@ -72,6 +73,22 @@ if not os.path.exists(get_datadir().absolute()):
     os.mkdir(get_datadir().absolute())
 
 
+def load_config() -> dict:
+    if not os.path.exists(config_path):
+        return {"keys": [("", "", "")] * 3, "save_dir": ""}
+    with open(config_path, "r") as f:
+        data = json.loads(f.read())
+    # migrate old list format
+    if isinstance(data, list):
+        return {"keys": data, "save_dir": ""}
+    return data
+
+
+def write_config(cfg: dict):
+    with open(config_path, "w+") as f:
+        f.write(json.dumps(cfg))
+
+
 class KeyBoardListener:
 
     def __init__(self, frame=None):
@@ -107,12 +124,13 @@ class KeyBoardListener:
 
 
 def save_config(entry_guis: list):
-    cfg = []
+    keys = []
     for key, short, long in entry_guis:
         if key.get():
-            cfg.append((key.get(), short.get(), long.get()))
-    with open(config_path, "w+") as f:
-        f.write(json.dumps(cfg))
+            keys.append((key.get(), short.get(), long.get()))
+    cfg = load_config()
+    cfg["keys"] = keys
+    write_config(cfg)
 
 
 def add_entry_row(frame, row, entry_guis: list, key_text="", short_text="", long_text=""):
@@ -174,11 +192,19 @@ class App:
 
         self.path_info_var = tk.StringVar()
         self.time_info_var = tk.StringVar()
+        self.save_dir_var = tk.StringVar()
+
+        cfg = load_config()
+        self.save_dir_var.set(cfg.get("save_dir", ""))
+
+        if not self.save_dir_var.get():
+            self._prompt_save_dir()
 
         self.keyboard = KeyBoardListener(self.root)
         self.keyboard.on_click(self.on_key_click)
         self.keyboard.on_long_click(self.on_key_long_click)
 
+        self.dir_frame = self.create_dir_picker()
         self.top_frame = self.create_top()
         self.mid_frame = self.create_middle()
         self.bot_frame = self.create_bottom()
@@ -186,12 +212,30 @@ class App:
     def runloop(self):
         self.root.mainloop()
 
+    def _prompt_save_dir(self):
+        directory = filedialog.askdirectory(title="Choose directory for saving recordings")
+        if directory:
+            self.save_dir_var.set(directory)
+            cfg = load_config()
+            cfg["save_dir"] = directory
+            write_config(cfg)
+
+    def _change_save_dir(self):
+        self._prompt_save_dir()
+
+    def create_dir_picker(self):
+        frame = ctk.CTkFrame(self.root)
+
+        ctk.CTkLabel(frame, text="Save to:", font=ctk.CTkFont(weight="bold")).pack(side="left", padx=(10, 5))
+        ctk.CTkLabel(frame, textvariable=self.save_dir_var).pack(side="left", fill="x", expand=True)
+        ctk.CTkButton(frame, text="Change", width=70, command=self._change_save_dir).pack(side="right", padx=10)
+
+        frame.pack(fill="x", padx=10, pady=(10, 0))
+        return frame
+
     def create_top(self):
-        if not os.path.exists(config_path):
-            data = [("", "", "")] * 3
-        else:
-            with open(config_path, "r") as f:
-                data = json.loads(f.read())
+        cfg = load_config()
+        data = cfg["keys"]
 
         frame = ctk.CTkFrame(self.root)
         ctk.CTkLabel(frame, text="Key", font=ctk.CTkFont(weight="bold")).grid(row=0, column=0, pady=(5, 2))
@@ -229,7 +273,11 @@ class App:
             self.run.save()
 
     def on_start(self):
-        self.run = Run(datetime.datetime.now())
+        if not self.save_dir_var.get():
+            self._prompt_save_dir()
+            if not self.save_dir_var.get():
+                return
+        self.run = Run(Path(self.save_dir_var.get()), datetime.datetime.now())
         self.t.delete("1.0", "end")
 
         for key, short, long in self.entry_guis:
