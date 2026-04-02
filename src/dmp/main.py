@@ -5,6 +5,7 @@ import tkinter as tk
 import sys
 from pathlib import Path
 
+import customtkinter as ctk
 import datetime
 from threading import Timer
 from tkinter import filedialog
@@ -12,6 +13,10 @@ from tkinter import filedialog
 APP_NAME = "helenes_timer"
 
 config = []
+
+ctk.set_appearance_mode("dark")
+ctk.set_default_color_theme("blue")
+ctk.deactivate_automatic_dpi_awareness()
 
 
 class Run:
@@ -112,16 +117,16 @@ def save_config(entry_guis: list):
 
 def add_entry_row(frame, row, entry_guis: list, key_text="", short_text="", long_text=""):
 
-    e1 = tk.Entry(frame, width=2)
+    e1 = ctk.CTkEntry(frame, width=40, placeholder_text="Key")
     e1.insert(0, key_text)
-    e1.grid(row=row, column=0)
+    e1.grid(row=row, column=0, padx=(0, 5), pady=3)
 
-    e2 = tk.Entry(frame)
-    e2.grid(row=row, column=1)
+    e2 = ctk.CTkEntry(frame, width=160, placeholder_text="Short press")
+    e2.grid(row=row, column=1, padx=5, pady=3)
     e2.insert(0, short_text)
 
-    e3 = tk.Entry(frame)
-    e3.grid(row=row, column=2)
+    e3 = ctk.CTkEntry(frame, width=160, placeholder_text="Long press")
+    e3.grid(row=row, column=2, padx=5, pady=3)
     e3.insert(0, long_text)
 
     def remove():
@@ -129,12 +134,11 @@ def add_entry_row(frame, row, entry_guis: list, key_text="", short_text="", long
         e1.grid_remove()
         e2.grid_remove()
         e3.grid_remove()
-        add.grid_remove()
-        frame.pack()
+        del_btn.grid_remove()
         save_config(entry_guis)
 
-    add = tk.Button(frame, text="Delete", command=remove)
-    add.grid(row=row, column=3)
+    del_btn = ctk.CTkButton(frame, text="Delete", width=60, fg_color="gray40", hover_color="gray30", command=remove)
+    del_btn.grid(row=row, column=3, padx=(5, 0), pady=3)
 
     e1.bind("<KeyRelease>", lambda _: save_config(entry_guis))
     e2.bind("<KeyRelease>", lambda _: save_config(entry_guis))
@@ -150,7 +154,11 @@ def update_time(string_var, start):
 
 class App:
     def __init__(self):
-        self.root = tk.Tk()
+        self.root = ctk.CTk()
+        self.root.title("Helene's Timer")
+        self.root.geometry("520x540")
+        self.root.minsize(480, 400)
+
         self.t = None
         self.s = None
         self.timer: Timer | None = None
@@ -169,7 +177,7 @@ class App:
 
         self.top_frame = self.create_top()
         self.mid_frame = self.create_middle()
-        self.b1, self.b2, self.b3 = self.create_bottom()
+        self.bot_frame = self.create_bottom()
 
         self.root.bind("<KeyRelease>", self.on_start_stop_key)
 
@@ -183,28 +191,25 @@ class App:
             with open(config_path, "r") as f:
                 data = json.loads(f.read())
 
-        frame = tk.Frame(self.root)
-        tk.Label(frame, text="Key").grid(row=0)
-        tk.Label(frame, text="Short press").grid(row=0, column=1)
-        tk.Label(frame, text="Long press").grid(row=0, column=2)
+        frame = ctk.CTkFrame(self.root)
+        ctk.CTkLabel(frame, text="Key", font=ctk.CTkFont(weight="bold")).grid(row=0, column=0, pady=(5, 2))
+        ctk.CTkLabel(frame, text="Short press", font=ctk.CTkFont(weight="bold")).grid(row=0, column=1, pady=(5, 2))
+        ctk.CTkLabel(frame, text="Long press", font=ctk.CTkFont(weight="bold")).grid(row=0, column=2, pady=(5, 2))
         self.entry_guis.clear()
         for idx, (key, short, long) in enumerate(data):
             add_entry_row(frame, idx + 1, self.entry_guis, key, short, long)
 
-        add = tk.Button(frame, text="Add", command=lambda: add_entry_row(frame, len(self.entry_guis) + 1, self.entry_guis))
-        add.grid(row=0, column=3)
+        add = ctk.CTkButton(frame, text="+ Add", width=60, command=lambda: add_entry_row(frame, len(self.entry_guis) + 1, self.entry_guis))
+        add.grid(row=0, column=3, padx=(5, 0), pady=(5, 2))
 
-        frame.pack()
+        frame.pack(fill="x", padx=10, pady=(10, 5))
         return frame
 
     def create_middle(self):
-        frame = tk.Frame(self.root)
-        self.t = tk.Text(frame, height=20)
-        self.s = tk.Scrollbar(frame)
-        self.s.pack(side=tk.RIGHT, fill=tk.Y)
-        self.s.config(command=self.t.yview)
-        self.t.pack(side=tk.LEFT, fill=tk.X)
-        frame.pack()
+        frame = ctk.CTkFrame(self.root)
+        self.t = ctk.CTkTextbox(frame, height=250, text_color="white")
+        self.t.pack(fill="both", expand=True, padx=5, pady=5)
+        frame.pack(fill="both", expand=True, padx=10, pady=5)
         return frame
 
     def save_file(self):
@@ -229,19 +234,19 @@ class App:
             self.short_mapping[key.get()] = short.get()
             self.long_mapping[key.get()] = long.get()
 
-        l = KeyBoardListener(self.top_frame)
+        l = KeyBoardListener(self.root)
         l.on_long_click(lambda x: self.record_event(x, self.long_mapping))
         l.on_click(lambda x: self.record_event(x, self.short_mapping))
 
         self.start_btn.grid_forget()
         self.save_btn.grid_forget()
-        self.cancel_btn.grid(row=0, column=2)
+        self.cancel_btn.grid(row=0, column=0, padx=5)
         self.time_info_var.set("0:00:00")
         self.path_info_var.set("")
 
         self.timer = RepeatTimer(1.0, lambda: update_time(self.time_info_var, self.run.start_time))
         self.timer.start()
-        self.top_frame.focus_set()
+        self.root.focus_set()
 
     def on_start_stop_key(self, e):
         if e.keysym == "s":
@@ -254,31 +259,26 @@ class App:
         path = self.run.save()
         self.path_info_var.set(f"Autosaved to: {str(path)}")
         self.cancel_btn.grid_forget()
-        self.start_btn.grid(row=0, column=3)
-        self.save_btn.grid(row=0, column=5)
+        self.start_btn.grid(row=0, column=0, padx=5)
+        self.save_btn.grid(row=0, column=2, padx=5)
         self.timer.cancel()
 
     def create_bottom(self):
-        frame1 = tk.Frame(self.root)
-        frame2 = tk.Frame(self.root)
-        frame3 = tk.Frame(self.root)
+        frame = ctk.CTkFrame(self.root)
 
-        tt = tk.Label(frame2, textvariable=self.time_info_var)
+        self.start_btn = ctk.CTkButton(frame, text="Start", width=80, fg_color="green", hover_color="darkgreen", command=self.on_start)
+        self.start_btn.grid(row=0, column=0, padx=5)
+
+        self.cancel_btn = ctk.CTkButton(frame, text="Stop", width=80, fg_color="firebrick", hover_color="darkred", command=self.on_cancel)
+
+        time_label = ctk.CTkLabel(frame, textvariable=self.time_info_var, font=ctk.CTkFont(size=20, weight="bold"))
         self.time_info_var.set("0:00:00")
-        tt.grid(row=0, column=1)
+        time_label.grid(row=0, column=1, padx=15)
 
-        self.start_btn = tk.Button(frame1, text="Start", command=self.on_start)
-        self.start_btn.grid(row=0, column=2)
+        self.save_btn = ctk.CTkButton(frame, text="Save As", width=80, command=self.save_file)
 
-        self.cancel_btn = tk.Button(frame1, text="Stop", command=self.on_cancel)
+        path_label = ctk.CTkLabel(frame, textvariable=self.path_info_var, font=ctk.CTkFont(size=12))
+        path_label.grid(row=1, column=0, columnspan=3, pady=(2, 0))
 
-        self.save_btn = tk.Button(frame3, text="Save As", command=self.save_file)
-
-        tt2 = tk.Label(frame3, textvariable=self.path_info_var)
-
-        tt2.grid(row=0, column=4)
-
-        frame1.pack()
-        frame2.pack()
-        frame3.pack()
-        return frame1, frame2, frame3
+        frame.pack(padx=10, pady=(5, 10))
+        return frame
