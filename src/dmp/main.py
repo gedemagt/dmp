@@ -153,17 +153,25 @@ class App:
         self.root = tk.Tk()
         self.t = None
         self.s = None
-        self.timer = None
+        self.timer: Timer | None = None
         self.run = None
+
+        self.cancel_btn = None
+        self.save_btn = None
+        self.start_btn = None
 
         self.entry_guis = []
         self.short_mapping = {}
         self.long_mapping = {}
 
         self.path_info_var = tk.StringVar()
+        self.time_info_var = tk.StringVar()
+
         self.top_frame = self.create_top()
         self.mid_frame = self.create_middle()
         self.b1, self.b2, self.b3 = self.create_bottom()
+
+        self.root.bind("<KeyRelease>", self.on_start_stop_key)
 
     def runloop(self):
         self.root.mainloop()
@@ -201,8 +209,9 @@ class App:
 
     def save_file(self):
         path = filedialog.asksaveasfilename()
-        self.run.save_as(path)
-        self.path_info_var.set(f"Saved to: {str(path)}")
+        if path:
+            self.run.save_as(path)
+            self.path_info_var.set(f"Saved to: {str(path)}")
 
     def record_event(self, x, mapping):
         if x in mapping:
@@ -212,52 +221,58 @@ class App:
             self.t.insert("1.0", f"{d}: {m}\n")
             self.run.save()
 
+    def on_start(self):
+        self.run = Run(datetime.datetime.now())
+        self.t.delete("1.0", "end")
+
+        for key, short, long in self.entry_guis:
+            self.short_mapping[key.get()] = short.get()
+            self.long_mapping[key.get()] = long.get()
+
+        l = KeyBoardListener(self.top_frame)
+        l.on_long_click(lambda x: self.record_event(x, self.long_mapping))
+        l.on_click(lambda x: self.record_event(x, self.short_mapping))
+
+        self.start_btn.grid_forget()
+        self.save_btn.grid_forget()
+        self.cancel_btn.grid(row=0, column=2)
+        self.time_info_var.set("0:00:00")
+        self.path_info_var.set("")
+
+        self.timer = RepeatTimer(1.0, lambda: update_time(self.time_info_var, self.run.start_time))
+        self.timer.start()
+        self.top_frame.focus_set()
+
+    def on_start_stop_key(self, e):
+        if e.keysym == "s":
+            if self.timer and not self.timer.finished.is_set():
+                self.on_cancel()
+            else:
+                self.on_start()
+
+    def on_cancel(self):
+        path = self.run.save()
+        self.path_info_var.set(f"Autosaved to: {str(path)}")
+        self.cancel_btn.grid_forget()
+        self.start_btn.grid(row=0, column=3)
+        self.save_btn.grid(row=0, column=5)
+        self.timer.cancel()
+
     def create_bottom(self):
         frame1 = tk.Frame(self.root)
         frame2 = tk.Frame(self.root)
         frame3 = tk.Frame(self.root)
 
-        def on_start():
-            self.run = Run(datetime.datetime.now())
-            self.t.delete("1.0", "end")
-
-            for key, short, long in self.entry_guis:
-                self.short_mapping[key.get()] = short.get()
-                self.long_mapping[key.get()] = long.get()
-
-            l = KeyBoardListener(self.top_frame)
-            l.on_long_click(lambda x: self.record_event(x, self.long_mapping))
-            l.on_click(lambda x: self.record_event(x, self.short_mapping))
-
-            start.grid_forget()
-            save.grid_forget()
-            cancel.grid(row=0, column=2)
-            var.set("0:00:00")
-            self.path_info_var.set("")
-
-            self.timer = RepeatTimer(1.0, lambda: update_time(var, self.run.start_time))
-            self.timer.start()
-            self.top_frame.focus_set()
-
-        def on_cancel():
-            path = self.run.save()
-            self.path_info_var.set(f"Autosaved to: {str(path)}")
-            cancel.grid_forget()
-            start.grid(row=0, column=3)
-            save.grid(row=0, column=5)
-            self.timer.cancel()
-
-        var = tk.StringVar()
-        tt = tk.Label(frame2, textvariable=var)
-        var.set("0:00:00")
+        tt = tk.Label(frame2, textvariable=self.time_info_var)
+        self.time_info_var.set("0:00:00")
         tt.grid(row=0, column=1)
 
-        start = tk.Button(frame1, text="Start", command=on_start)
-        start.grid(row=0, column=2)
+        self.start_btn = tk.Button(frame1, text="Start", command=self.on_start)
+        self.start_btn.grid(row=0, column=2)
 
-        cancel = tk.Button(frame1, text="Stop", command=on_cancel)
+        self.cancel_btn = tk.Button(frame1, text="Stop", command=self.on_cancel)
 
-        save = tk.Button(frame3, text="Save As", command=self.save_file)
+        self.save_btn = tk.Button(frame3, text="Save As", command=self.save_file)
 
         tt2 = tk.Label(frame3, textvariable=self.path_info_var)
 
