@@ -175,11 +175,13 @@ class App:
         self.path_info_var = tk.StringVar()
         self.time_info_var = tk.StringVar()
 
+        self.keyboard = KeyBoardListener(self.root)
+        self.keyboard.on_click(self.on_key_click)
+        self.keyboard.on_long_click(self.on_key_long_click)
+
         self.top_frame = self.create_top()
         self.mid_frame = self.create_middle()
         self.bot_frame = self.create_bottom()
-
-        self.root.bind("<KeyRelease>", self.on_start_stop_key)
 
     def runloop(self):
         self.root.mainloop()
@@ -234,10 +236,6 @@ class App:
             self.short_mapping[key.get()] = short.get()
             self.long_mapping[key.get()] = long.get()
 
-        l = KeyBoardListener(self.root)
-        l.on_long_click(lambda x: self.record_event(x, self.long_mapping))
-        l.on_click(lambda x: self.record_event(x, self.short_mapping))
-
         self.start_btn.grid_forget()
         self.save_btn.grid_forget()
         self.cancel_btn.grid(row=0, column=0, padx=5)
@@ -248,12 +246,21 @@ class App:
         self.timer.start()
         self.root.focus_set()
 
-    def on_start_stop_key(self, e):
-        if e.keysym == "s":
-            if self.timer and not self.timer.finished.is_set():
+    def _is_recording(self):
+        return self.timer and not self.timer.finished.is_set()
+
+    def on_key_click(self, keysym):
+        if keysym == "s":
+            if self._is_recording():
                 self.on_cancel()
             else:
                 self.on_start()
+        elif self._is_recording():
+            self.record_event(keysym, self.short_mapping)
+
+    def on_key_long_click(self, keysym):
+        if self._is_recording():
+            self.record_event(keysym, self.long_mapping)
 
     def on_cancel(self):
         path = self.run.save()
