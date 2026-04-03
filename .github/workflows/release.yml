@@ -22,7 +22,8 @@ jobs:
         run: uv run pyinstaller --onedir --windowed --name dmp --collect-data customtkinter --paths src src/dmp/__main__.py
 
       - name: Build installer
-        run: iscc /DAPP_VERSION="${{ github.event.release.tag_name }}" installer.iss
+        shell: cmd
+        run: "%ProgramFiles(x86)%\Inno Setup 6\iscc.exe" /DAPP_VERSION="${{ github.event.release.tag_name }}" installer.iss
 
       - name: Upload to release
         uses: softprops/action-gh-release@v2
