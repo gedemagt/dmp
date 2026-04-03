@@ -19,12 +19,15 @@ jobs:
         run: uv sync
 
       - name: Build executable
-        run: uv run pyinstaller --onefile --windowed --name helenes_timer --collect-data customtkinter --paths src src/dmp/__main__.py
+        run: uv run pyinstaller --onefile --windowed --name dmp --collect-data customtkinter --paths src src/dmp/__main__.py
+
+      - name: Rename artifact
+        run: mv dist/dmp.exe dist/dmp-windows-x64.exe
 
       - name: Upload to release
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/helenes_timer.exe
+          files: dist/dmp-windows-x64.exe
 
   build-linux:
     runs-on: ubuntu-latest
@@ -33,16 +36,22 @@ jobs:
 
       - uses: astral-sh/setup-uv@v4
 
+      - name: Install system dependencies
+        run: sudo apt-get update && sudo apt-get install -y python3-tk
+
       - name: Install dependencies
         run: uv sync
 
       - name: Build executable
-        run: uv run pyinstaller --onefile --windowed --name helenes_timer --collect-data customtkinter --paths src src/dmp/__main__.py
+        run: uv run pyinstaller --onefile --windowed --name dmp --collect-data customtkinter --collect-all tkinter --paths src src/dmp/__main__.py
+
+      - name: Rename artifact
+        run: mv dist/dmp dist/dmp-linux-x64
 
       - name: Upload to release
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/helenes_timer
+          files: dist/dmp-linux-x64
 
   build-macos:
     runs-on: macos-latest
@@ -55,16 +64,16 @@ jobs:
         run: uv sync
 
       - name: Build app bundle
-        run: uv run pyinstaller --onefile --windowed --name helenes_timer --collect-data customtkinter --paths src src/dmp/__main__.py
+        run: uv run pyinstaller --onefile --windowed --name dmp --collect-data customtkinter --paths src src/dmp/__main__.py
 
       - name: Create DMG
         run: |
           mkdir -p dmg_content
-          cp -r dist/helenes_timer.app dmg_content/
+          cp -r dist/dmp.app dmg_content/
           ln -s /Applications dmg_content/Applications
-          hdiutil create -volname "Helenes Timer" -srcfolder dmg_content -ov -format UDZO dist/helenes_timer.dmg
+          hdiutil create -volname "DMP" -srcfolder dmg_content -ov -format UDZO dist/dmp-macos-arm64.dmg
 
       - name: Upload to release
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/helenes_timer.dmg
+          files: dist/dmp-macos-arm64.dmg

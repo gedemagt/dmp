@@ -10,7 +10,7 @@ import datetime
 from threading import Timer
 from tkinter import filedialog
 
-APP_NAME = "helenes_timer"
+APP_NAME = "dmp"
 
 config = []
 
@@ -173,7 +173,7 @@ def update_time(string_var, start):
 class App:
     def __init__(self):
         self.root = ctk.CTk()
-        self.root.title("Helene's Timer")
+        self.root.title("DMP")
         self.root.geometry("520x540")
         self.root.minsize(480, 400)
 
