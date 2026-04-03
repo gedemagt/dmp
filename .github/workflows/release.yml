@@ -23,7 +23,10 @@ jobs:
 
       - name: Build installer
         shell: cmd
-        run: "%ProgramFiles(x86)%\Inno Setup 6\iscc.exe" /DAPP_VERSION="${{ github.event.release.tag_name }}" installer.iss
+        run: >
+          "%ProgramFiles(x86)%\Inno Setup 6\iscc.exe"
+          /DAPP_VERSION="${{ github.event.release.tag_name }}"
+          installer.iss
 
       - name: Upload to release
         uses: softprops/action-gh-release@v2
