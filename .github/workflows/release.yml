@@ -1,0 +1,70 @@
+name: Build Release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v4
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Build executable
+        run: uv run pyinstaller --onefile --windowed --name helenes_timer --collect-data customtkinter --paths src src/dmp/__main__.py
+
+      - name: Upload to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/helenes_timer.exe
+
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v4
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Build executable
+        run: uv run pyinstaller --onefile --windowed --name helenes_timer --collect-data customtkinter --paths src src/dmp/__main__.py
+
+      - name: Upload to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/helenes_timer
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v4
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Build app bundle
+        run: uv run pyinstaller --onefile --windowed --name helenes_timer --collect-data customtkinter --paths src src/dmp/__main__.py
+
+      - name: Create DMG
+        run: |
+          mkdir -p dmg_content
+          cp -r dist/helenes_timer.app dmg_content/
+          ln -s /Applications dmg_content/Applications
+          hdiutil create -volname "Helenes Timer" -srcfolder dmg_content -ov -format UDZO dist/helenes_timer.dmg
+
+      - name: Upload to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/helenes_timer.dmg
