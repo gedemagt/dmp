@@ -21,9 +21,9 @@ jobs:
       - name: Build executable
         run: uv run pyinstaller --onedir --windowed --name dmp --collect-data customtkinter --paths src src/dmp/__main__.py
 
-      - name: List build output
+      - name: Create installer output dir
         shell: cmd
-        run: dir dist\dmp
+        run: mkdir installer
 
       - name: Build installer
         shell: cmd
