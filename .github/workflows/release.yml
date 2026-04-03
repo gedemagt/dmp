@@ -19,15 +19,15 @@ jobs:
         run: uv sync
 
       - name: Build executable
-        run: uv run pyinstaller --onefile --windowed --name dmp --collect-data customtkinter --paths src src/dmp/__main__.py
+        run: uv run pyinstaller --onedir --windowed --name dmp --collect-data customtkinter --paths src src/dmp/__main__.py
 
-      - name: Rename artifact
-        run: mv dist/dmp.exe dist/dmp-windows-x64.exe
+      - name: Build installer
+        run: iscc /DAPP_VERSION="${{ github.event.release.tag_name }}" installer.iss
 
       - name: Upload to release
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/dmp-windows-x64.exe
+          files: installer/dmp-windows-x64-setup.exe
 
   build-linux:
     runs-on: ubuntu-latest
