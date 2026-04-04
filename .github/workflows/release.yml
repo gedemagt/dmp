@@ -1,0 +1,95 @@
+name: Build Release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v4
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Build executable
+        run: uv run pyinstaller --onedir --windowed --name dmp --paths src src/dmp/__main__.py
+
+      - name: Create installer output dir
+        shell: cmd
+        run: mkdir installer
+
+      - name: Build installer
+        shell: cmd
+        run: >
+          "%ProgramFiles(x86)%\Inno Setup 6\iscc.exe"
+          /DAPP_VERSION="${{ github.event.release.tag_name }}"
+          installer.iss
+
+      - name: Upload to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: installer/dmp-windows-x64-setup.exe
+
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v4
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Find Tcl/Tk libraries
+        id: tcltk
+        run: |
+          echo "dir=$(uv run python -c "import sys; print(sys.base_prefix)")/lib" >> "$GITHUB_OUTPUT"
+
+      - name: Build executable
+        run: |
+          uv run pyinstaller --onefile --windowed --name dmp \
+            \
+            --collect-all tkinter \
+            --add-binary "${{ steps.tcltk.outputs.dir }}/libtcl9.0.so:." \
+            --add-binary "${{ steps.tcltk.outputs.dir }}/libtcl9tk9.0.so:." \
+            --paths src src/dmp/__main__.py
+
+      - name: Rename artifact
+        run: mv dist/dmp dist/dmp-linux-x64
+
+      - name: Upload to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/dmp-linux-x64
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v4
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Build app bundle
+        run: uv run pyinstaller --onefile --windowed --name dmp --paths src src/dmp/__main__.py
+
+      - name: Create DMG
+        run: |
+          mkdir -p dmg_content
+          cp -r dist/dmp.app dmg_content/
+          ln -s /Applications dmg_content/Applications
+          hdiutil create -volname "DMP" -srcfolder dmg_content -ov -format UDZO dist/dmp-macos-arm64.dmg
+
+      - name: Upload to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/dmp-macos-arm64.dmg

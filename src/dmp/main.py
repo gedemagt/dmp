@@ -2,21 +2,136 @@ import json
 import os
 import time
 import tkinter as tk
+from tkinter import ttk
 import sys
 from pathlib import Path
 
-import customtkinter as ctk
 import datetime
 from threading import Timer
 from tkinter import filedialog
 
-APP_NAME = "helenes_timer"
+APP_NAME = "dmp"
 
 config = []
 
-ctk.set_appearance_mode("dark")
-ctk.set_default_color_theme("blue")
-ctk.deactivate_automatic_dpi_awareness()
+# Material-inspired color palette
+COLORS = {
+    "bg": "#2E2E2E",
+    "surface": "#3C3C3C",
+    "primary": "#6200EE",
+    "primary_dark": "#3700B3",
+    "secondary": "#03DAC6",
+    "error": "#CF6679",
+    "on_bg": "#E0E0E0",
+    "on_surface": "#FFFFFF",
+    "on_primary": "#FFFFFF",
+    "muted": "#9E9E9E",
+    "entry_bg": "#4A4A4A",
+    "start": "#4CAF50",
+    "start_active": "#388E3C",
+    "stop": "#F44336",
+    "stop_active": "#D32F2F",
+}
+FONT = "Helvetica"
+
+
+def apply_theme(root):
+    root.configure(bg=COLORS["bg"])
+    style = ttk.Style(root)
+    style.theme_use("clam")
+
+    style.configure(
+        ".", background=COLORS["bg"], foreground=COLORS["on_bg"], font=(FONT, 10)
+    )
+    style.configure("TFrame", background=COLORS["bg"])
+    style.configure("Card.TFrame", background=COLORS["surface"])
+    style.configure(
+        "TLabel", background=COLORS["bg"], foreground=COLORS["on_bg"], font=(FONT, 10)
+    )
+    style.configure("Card.TLabel", background=COLORS["surface"])
+    style.configure("Bold.TLabel", font=(FONT, 10, "bold"))
+    style.configure(
+        "Bold.Card.TLabel", background=COLORS["surface"], font=(FONT, 10, "bold")
+    )
+    style.configure(
+        "Timer.TLabel", font=(FONT, 22, "bold"), foreground=COLORS["secondary"]
+    )
+    style.configure(
+        "Timer.Card.TLabel",
+        background=COLORS["surface"],
+        font=(FONT, 32, "bold"),
+        foreground=COLORS["secondary"],
+    )
+    style.configure("Muted.TLabel", foreground=COLORS["muted"], font=(FONT, 9))
+    style.configure(
+        "Muted.Card.TLabel",
+        background=COLORS["surface"],
+        foreground=COLORS["muted"],
+        font=(FONT, 9),
+    )
+
+    style.configure(
+        "TButton",
+        background=COLORS["primary"],
+        foreground=COLORS["on_primary"],
+        font=(FONT, 10),
+        padding=(12, 6),
+        borderwidth=0,
+    )
+    style.map(
+        "TButton",
+        background=[
+            ("active", COLORS["primary_dark"]),
+            ("pressed", COLORS["primary_dark"]),
+        ],
+        relief=[("pressed", "flat"), ("!pressed", "flat")],
+    )
+
+    style.configure(
+        "Icon.TButton",
+        background=COLORS["surface"],
+        foreground=COLORS["muted"],
+        padding=(4, 2),
+        font=(FONT, 12),
+        width=2,
+    )
+    style.map(
+        "Icon.TButton",
+        background=[("active", COLORS["primary"])],
+        foreground=[("active", COLORS["on_primary"])],
+    )
+
+    style.configure(
+        "Delete.TButton",
+        background=COLORS["surface"],
+        foreground=COLORS["error"],
+        padding=(4, 2),
+        font=(FONT, 12),
+        width=2,
+    )
+    style.map(
+        "Delete.TButton",
+        background=[("active", COLORS["error"])],
+        foreground=[("active", COLORS["on_primary"])],
+    )
+
+    style.configure(
+        "TEntry",
+        fieldbackground=COLORS["entry_bg"],
+        foreground=COLORS["on_surface"],
+        insertcolor=COLORS["on_surface"],
+        borderwidth=1,
+        padding=4,
+    )
+    style.map("TEntry", fieldbackground=[("focus", "#555555")])
+
+    style.configure(
+        "Vertical.TScrollbar",
+        background=COLORS["surface"],
+        troughcolor=COLORS["bg"],
+        borderwidth=0,
+        arrowsize=0,
+    )
 
 
 class Run:
@@ -46,22 +161,20 @@ class RepeatTimer(Timer):
 
 
 def get_datadir() -> Path:
-
     """
-    Returns a parent directory path
-    where persistent application data can be stored.
+    Returns the platform-specific directory for persistent application data.
 
-    # linux: ~/.local/share
-    # macOS: ~/Library/Application Support
-    # windows: C:/Users/<USER>/AppData/Roaming
+    - Windows: %APPDATA%/<app> (fallback: ~/AppData/Roaming)
+    - Linux: $XDG_DATA_HOME/<app> (fallback: ~/.local/share)
+    - macOS: ~/Library/Application Support/<app>
     """
 
     home = Path.home()
 
     if sys.platform == "win32":
-        return home / "AppData/Roaming" / APP_NAME
+        return Path(os.environ.get("APPDATA", home / "AppData/Roaming")) / APP_NAME
     elif sys.platform == "linux":
-        return home / ".local/share" / APP_NAME
+        return Path(os.environ.get("XDG_DATA_HOME", home / ".local/share")) / APP_NAME
     elif sys.platform == "darwin":
         return home / "Library/Application Support" / APP_NAME
     else:
@@ -75,7 +188,10 @@ if not os.path.exists(get_datadir().absolute()):
 
 def load_config() -> dict:
     if not os.path.exists(config_path):
-        return {"keys": [("", "", "")] * 3, "save_dir": ""}
+        return {
+            "keys": [("a", "Event A", "Event A (long)"), ("", "", ""), ("", "", "")],
+            "save_dir": "",
+        }
     with open(config_path, "r") as f:
         data = json.loads(f.read())
     # migrate old list format
@@ -90,15 +206,14 @@ def write_config(cfg: dict):
 
 
 class KeyBoardListener:
-
     def __init__(self, frame=None):
         self.bt_down = {}
         self.bt_up = {}
         self._click_listeners = []
         self._long_listeners = []
         if frame:
-            frame.bind("<KeyPress>", self._on_key_down)
-            frame.bind("<KeyRelease>", self._on_key_up)
+            frame.bind_all("<KeyPress>", self._on_key_down)
+            frame.bind_all("<KeyRelease>", self._on_key_up)
 
     def on_click(self, callback):
         self._click_listeners.append(callback)
@@ -133,18 +248,20 @@ def save_config(entry_guis: list):
     write_config(cfg)
 
 
-def add_entry_row(frame, row, entry_guis: list, key_text="", short_text="", long_text=""):
+def add_entry_row(
+    frame, row, entry_guis: list, key_text="", short_text="", long_text=""
+):
 
-    e1 = ctk.CTkEntry(frame, width=40, placeholder_text="Key")
+    e1 = ttk.Entry(frame, width=3)
     e1.insert(0, key_text)
-    e1.grid(row=row, column=0, padx=(0, 5), pady=3)
+    e1.grid(row=row, column=0, padx=(8, 4), pady=3, sticky="ew")
 
-    e2 = ctk.CTkEntry(frame, width=160, placeholder_text="Short press")
-    e2.grid(row=row, column=1, padx=5, pady=3)
+    e2 = ttk.Entry(frame)
+    e2.grid(row=row, column=1, padx=4, pady=3, sticky="ew")
     e2.insert(0, short_text)
 
-    e3 = ctk.CTkEntry(frame, width=160, placeholder_text="Long press")
-    e3.grid(row=row, column=2, padx=5, pady=3)
+    e3 = ttk.Entry(frame)
+    e3.grid(row=row, column=2, padx=4, pady=3, sticky="ew")
     e3.insert(0, long_text)
 
     def remove():
@@ -155,8 +272,8 @@ def add_entry_row(frame, row, entry_guis: list, key_text="", short_text="", long
         del_btn.grid_remove()
         save_config(entry_guis)
 
-    del_btn = ctk.CTkButton(frame, text="Delete", width=60, fg_color="gray40", hover_color="gray30", command=remove)
-    del_btn.grid(row=row, column=3, padx=(5, 0), pady=3)
+    del_btn = ttk.Button(frame, text="x", style="Delete.TButton", command=remove)
+    del_btn.grid(row=row, column=3, padx=(4, 8), pady=3)
 
     e1.bind("<KeyRelease>", lambda _: save_config(entry_guis))
     e2.bind("<KeyRelease>", lambda _: save_config(entry_guis))
@@ -172,10 +289,11 @@ def update_time(string_var, start):
 
 class App:
     def __init__(self):
-        self.root = ctk.CTk()
-        self.root.title("Helene's Timer")
-        self.root.geometry("520x540")
-        self.root.minsize(480, 400)
+        self.root = tk.Tk()
+        self.root.title("DMP")
+        self.root.geometry("620x640")
+        self.root.minsize(560, 500)
+        apply_theme(self.root)
 
         self.t = None
         self.s = None
@@ -204,16 +322,18 @@ class App:
         self.keyboard.on_click(self.on_key_click)
         self.keyboard.on_long_click(self.on_key_long_click)
 
-        self.dir_frame = self.create_dir_picker()
         self.top_frame = self.create_top()
         self.mid_frame = self.create_middle()
         self.bot_frame = self.create_bottom()
+        self.dir_frame = self.create_dir_picker()
 
     def runloop(self):
         self.root.mainloop()
 
     def _prompt_save_dir(self):
-        directory = filedialog.askdirectory(title="Choose directory for saving recordings")
+        directory = filedialog.askdirectory(
+            title="Choose directory for saving recordings"
+        )
         if directory:
             self.save_dir_var.set(directory)
             cfg = load_config()
@@ -224,37 +344,79 @@ class App:
         self._prompt_save_dir()
 
     def create_dir_picker(self):
-        frame = ctk.CTkFrame(self.root)
+        frame = ttk.Frame(self.root, style="Card.TFrame")
 
-        ctk.CTkLabel(frame, text="Save to:", font=ctk.CTkFont(weight="bold")).pack(side="left", padx=(10, 5))
-        ctk.CTkLabel(frame, textvariable=self.save_dir_var).pack(side="left", fill="x", expand=True)
-        ctk.CTkButton(frame, text="Change", width=70, command=self._change_save_dir).pack(side="right", padx=10)
+        ttk.Label(frame, text="Autosave directory:", style="Bold.Card.TLabel").pack(
+            side="left", padx=(10, 5)
+        )
+        dir_label = ttk.Label(
+            frame, textvariable=self.save_dir_var, style="Card.TLabel"
+        )
+        dir_label.pack(side="left", fill="x", expand=True)
+        dir_label.bind("<Configure>", lambda e: dir_label.configure(wraplength=e.width))
+        ttk.Button(
+            frame, text="...", style="Icon.TButton", command=self._change_save_dir
+        ).pack(side="right", padx=10, pady=6)
 
-        frame.pack(fill="x", padx=10, pady=(10, 0))
+        frame.pack(fill="x", padx=10, pady=(10, 10))
         return frame
 
     def create_top(self):
         cfg = load_config()
         data = cfg["keys"]
 
-        frame = ctk.CTkFrame(self.root)
-        ctk.CTkLabel(frame, text="Key", font=ctk.CTkFont(weight="bold")).grid(row=0, column=0, pady=(5, 2))
-        ctk.CTkLabel(frame, text="Short press", font=ctk.CTkFont(weight="bold")).grid(row=0, column=1, pady=(5, 2))
-        ctk.CTkLabel(frame, text="Long press", font=ctk.CTkFont(weight="bold")).grid(row=0, column=2, pady=(5, 2))
+        frame = ttk.Frame(self.root, style="Card.TFrame")
+        frame.columnconfigure(0, weight=0, minsize=50)
+        frame.columnconfigure(1, weight=1)
+        frame.columnconfigure(2, weight=1)
+        frame.columnconfigure(3, weight=0)
+
+        ttk.Label(frame, text="Key", style="Bold.Card.TLabel").grid(
+            row=0, column=0, padx=(8, 4), pady=(8, 2)
+        )
+        ttk.Label(frame, text="Short press", style="Bold.Card.TLabel").grid(
+            row=0, column=1, padx=4, pady=(8, 2)
+        )
+        ttk.Label(frame, text="Long press", style="Bold.Card.TLabel").grid(
+            row=0, column=2, padx=4, pady=(8, 2)
+        )
         self.entry_guis.clear()
         for idx, (key, short, long) in enumerate(data):
             add_entry_row(frame, idx + 1, self.entry_guis, key, short, long)
 
-        add = ctk.CTkButton(frame, text="+ Add", width=60, command=lambda: add_entry_row(frame, len(self.entry_guis) + 1, self.entry_guis))
-        add.grid(row=0, column=3, padx=(5, 0), pady=(5, 2))
+        add = ttk.Button(
+            frame,
+            text="+",
+            style="Icon.TButton",
+            command=lambda: add_entry_row(
+                frame, len(self.entry_guis) + 1, self.entry_guis
+            ),
+        )
+        add.grid(row=0, column=3, padx=(4, 8), pady=(5, 2))
 
         frame.pack(fill="x", padx=10, pady=(10, 5))
         return frame
 
     def create_middle(self):
-        frame = ctk.CTkFrame(self.root)
-        self.t = ctk.CTkTextbox(frame, height=250, text_color="white")
-        self.t.pack(fill="both", expand=True, padx=5, pady=5)
+        frame = ttk.Frame(self.root, style="Card.TFrame")
+        self.t = tk.Text(
+            frame,
+            height=15,
+            bg=COLORS["entry_bg"],
+            fg=COLORS["on_surface"],
+            insertbackground=COLORS["on_surface"],
+            selectbackground=COLORS["primary"],
+            font=(FONT, 10),
+            relief="flat",
+            padx=8,
+            pady=8,
+            borderwidth=0,
+            state="disabled",
+        )
+        self.s = ttk.Scrollbar(frame, command=self.t.yview)
+        self.t.config(yscrollcommand=self.s.set)
+        self.s.pack(side="right", fill="y", padx=(0, 2), pady=2)
+        self.t.pack(side="left", fill="both", expand=True, padx=(2, 0), pady=2)
         frame.pack(fill="both", expand=True, padx=10, pady=5)
         return frame
 
@@ -264,12 +426,22 @@ class App:
             self.run.save_as(path)
             self.path_info_var.set(f"Saved to: {str(path)}")
 
+    def _text_insert(self, index, text):
+        self.t.config(state="normal")
+        self.t.insert(index, text)
+        self.t.config(state="disabled")
+
+    def _text_clear(self):
+        self.t.config(state="normal")
+        self.t.delete("1.0", "end")
+        self.t.config(state="disabled")
+
     def record_event(self, x, mapping):
         if x in mapping:
             m = mapping[x]
             d = datetime.datetime.now()
             self.run.events.append((m, d))
-            self.t.insert("1.0", f"{d}: {m}\n")
+            self._text_insert("1.0", f"{d}: {m}\n")
             self.run.save()
 
     def on_start(self):
@@ -278,26 +450,34 @@ class App:
             if not self.save_dir_var.get():
                 return
         self.run = Run(Path(self.save_dir_var.get()), datetime.datetime.now())
-        self.t.delete("1.0", "end")
+        self._text_clear()
 
         for key, short, long in self.entry_guis:
             self.short_mapping[key.get()] = short.get()
             self.long_mapping[key.get()] = long.get()
 
         self.start_btn.grid_forget()
-        self.save_btn.grid_forget()
-        self.cancel_btn.grid(row=0, column=0, padx=5)
+        self.cancel_btn.grid(row=0, column=0, padx=5, pady=5, sticky="e")
+        self.save_btn.state(["disabled"])
         self.time_info_var.set("0:00:00")
         self.path_info_var.set("")
 
-        self.timer = RepeatTimer(1.0, lambda: update_time(self.time_info_var, self.run.start_time))
+        self.timer = RepeatTimer(
+            1.0, lambda: update_time(self.time_info_var, self.run.start_time)
+        )
         self.timer.start()
         self.root.focus_set()
 
     def _is_recording(self):
         return self.timer and not self.timer.finished.is_set()
 
+    def _focus_in_entry(self):
+        widget = self.root.focus_get()
+        return isinstance(widget, (tk.Entry, ttk.Entry))
+
     def on_key_click(self, keysym):
+        if self._focus_in_entry():
+            return
         if keysym == "s":
             if self._is_recording():
                 self.on_cancel()
@@ -307,33 +487,87 @@ class App:
             self.record_event(keysym, self.short_mapping)
 
     def on_key_long_click(self, keysym):
+        if self._focus_in_entry():
+            return
         if self._is_recording():
             self.record_event(keysym, self.long_mapping)
 
     def on_cancel(self):
-        path = self.run.save()
-        self.path_info_var.set(f"Autosaved to: {str(path)}")
+        try:
+            path = self.run.save()
+            self.path_info_var.set(f"Autosaved to: {str(path)}")
+            self.save_btn.state(["!disabled"])
+        except FileNotFoundError:
+            self.path_info_var.set(
+                "Failed to save file. Please check the save directory."
+            )
+
         self.cancel_btn.grid_forget()
-        self.start_btn.grid(row=0, column=0, padx=5)
-        self.save_btn.grid(row=0, column=2, padx=5)
+        self.start_btn.grid(row=0, column=0, padx=5, pady=5, sticky="e")
         self.timer.cancel()
 
     def create_bottom(self):
-        frame = ctk.CTkFrame(self.root)
+        frame = ttk.Frame(self.root, style="Card.TFrame")
 
-        self.start_btn = ctk.CTkButton(frame, text="Start", width=80, fg_color="green", hover_color="darkgreen", command=self.on_start)
-        self.start_btn.grid(row=0, column=0, padx=5)
-
-        self.cancel_btn = ctk.CTkButton(frame, text="Stop", width=80, fg_color="firebrick", hover_color="darkred", command=self.on_cancel)
-
-        time_label = ctk.CTkLabel(frame, textvariable=self.time_info_var, font=ctk.CTkFont(size=20, weight="bold"))
+        time_label = ttk.Label(
+            frame, textvariable=self.time_info_var, style="Timer.Card.TLabel"
+        )
         self.time_info_var.set("0:00:00")
-        time_label.grid(row=0, column=1, padx=15)
+        time_label.pack(pady=(12, 6))
 
-        self.save_btn = ctk.CTkButton(frame, text="Save As", width=80, command=self.save_file)
+        btn_row = ttk.Frame(frame, style="Card.TFrame")
+        btn_row.columnconfigure(0, weight=1)
+        btn_row.columnconfigure(1, weight=1)
 
-        path_label = ctk.CTkLabel(frame, textvariable=self.path_info_var, font=ctk.CTkFont(size=12))
-        path_label.grid(row=1, column=0, columnspan=3, pady=(2, 0))
+        self.start_btn = tk.Button(
+            btn_row,
+            text="Start (S)",
+            command=self.on_start,
+            bg=COLORS["start"],
+            activebackground=COLORS["start_active"],
+            fg="white",
+            activeforeground="white",
+            font=(FONT, 11, "bold"),
+            width=10,
+            relief="flat",
+            cursor="hand2",
+        )
+        self.start_btn.grid(row=0, column=0, padx=5, pady=5, sticky="e")
 
-        frame.pack(padx=10, pady=(5, 10))
+        self.cancel_btn = tk.Button(
+            btn_row,
+            text="Stop (S)",
+            command=self.on_cancel,
+            bg=COLORS["stop"],
+            activebackground=COLORS["stop_active"],
+            fg="white",
+            activeforeground="white",
+            font=(FONT, 11, "bold"),
+            width=10,
+            relief="flat",
+            cursor="hand2",
+        )
+
+        self.save_btn = ttk.Button(
+            btn_row, text="Save As", command=self.save_file, state="disabled"
+        )
+        self.save_btn.grid(row=0, column=1, padx=5, pady=5, sticky="w")
+
+        btn_row.pack(fill="x", padx=10)
+
+        path_label = ttk.Label(
+            frame, textvariable=self.path_info_var, style="Muted.Card.TLabel"
+        )
+        path_label.pack(pady=(2, 8))
+
+        frame.pack(fill="x", padx=10, pady=(5, 10))
         return frame
+
+
+def main():
+    app = App()
+    app.runloop()
+
+
+if __name__ == "__main__":
+    main()
