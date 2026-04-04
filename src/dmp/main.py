@@ -50,7 +50,9 @@ def apply_theme(root):
     style.configure("Bold.TLabel", font=(FONT, 10, "bold"))
     style.configure("Bold.Card.TLabel", background=COLORS["surface"], font=(FONT, 10, "bold"))
     style.configure("Timer.TLabel", font=(FONT, 22, "bold"), foreground=COLORS["secondary"])
+    style.configure("Timer.Card.TLabel", background=COLORS["surface"], font=(FONT, 32, "bold"), foreground=COLORS["secondary"])
     style.configure("Muted.TLabel", foreground=COLORS["muted"], font=(FONT, 9))
+    style.configure("Muted.Card.TLabel", background=COLORS["surface"], foreground=COLORS["muted"], font=(FONT, 9))
 
     style.configure("TButton", background=COLORS["primary"], foreground=COLORS["on_primary"],
                      font=(FONT, 10), padding=(12, 6), borderwidth=0)
@@ -133,7 +135,7 @@ if not os.path.exists(get_datadir().absolute()):
 
 def load_config() -> dict:
     if not os.path.exists(config_path):
-        return {"keys": [("", "", "")] * 3, "save_dir": ""}
+        return {"keys": [("a", "Event A", "Event A (long)"), ("", "", ""), ("", "", "")], "save_dir": ""}
     with open(config_path, "r") as f:
         data = json.loads(f.read())
     # migrate old list format
@@ -286,7 +288,9 @@ class App:
         frame = ttk.Frame(self.root, style="Card.TFrame")
 
         ttk.Label(frame, text="Autosave directory:", style="Bold.Card.TLabel").pack(side="left", padx=(10, 5))
-        ttk.Label(frame, textvariable=self.save_dir_var, style="Card.TLabel").pack(side="left", fill="x", expand=True)
+        dir_label = ttk.Label(frame, textvariable=self.save_dir_var, style="Card.TLabel")
+        dir_label.pack(side="left", fill="x", expand=True)
+        dir_label.bind("<Configure>", lambda e: dir_label.configure(wraplength=e.width))
         ttk.Button(frame, text="Change", command=self._change_save_dir).pack(side="right", padx=10, pady=6)
 
         frame.pack(fill="x", padx=10, pady=(10, 0))
@@ -320,7 +324,8 @@ class App:
         frame = ttk.Frame(self.root, style="Card.TFrame")
         self.t = tk.Text(frame, height=15, bg=COLORS["entry_bg"], fg=COLORS["on_surface"],
                          insertbackground=COLORS["on_surface"], selectbackground=COLORS["primary"],
-                         font=(FONT, 10), relief="flat", padx=8, pady=8, borderwidth=0)
+                         font=(FONT, 10), relief="flat", padx=8, pady=8, borderwidth=0,
+                         state="disabled")
         self.s = ttk.Scrollbar(frame, command=self.t.yview)
         self.t.config(yscrollcommand=self.s.set)
         self.s.pack(side=tk.RIGHT, fill=tk.Y, padx=(0, 2), pady=2)
@@ -334,12 +339,22 @@ class App:
             self.run.save_as(path)
             self.path_info_var.set(f"Saved to: {str(path)}")
 
+    def _text_insert(self, index, text):
+        self.t.config(state="normal")
+        self.t.insert(index, text)
+        self.t.config(state="disabled")
+
+    def _text_clear(self):
+        self.t.config(state="normal")
+        self.t.delete("1.0", "end")
+        self.t.config(state="disabled")
+
     def record_event(self, x, mapping):
         if x in mapping:
             m = mapping[x]
             d = datetime.datetime.now()
             self.run.events.append((m, d))
-            self.t.insert("1.0", f"{d}: {m}\n")
+            self._text_insert("1.0", f"{d}: {m}\n")
             self.run.save()
 
     def on_start(self):
@@ -348,15 +363,15 @@ class App:
             if not self.save_dir_var.get():
                 return
         self.run = Run(Path(self.save_dir_var.get()), datetime.datetime.now())
-        self.t.delete("1.0", "end")
+        self._text_clear()
 
         for key, short, long in self.entry_guis:
             self.short_mapping[key.get()] = short.get()
             self.long_mapping[key.get()] = long.get()
 
         self.start_btn.grid_forget()
-        self.save_btn.grid_forget()
-        self.cancel_btn.grid(row=0, column=0, padx=5)
+        self.cancel_btn.grid(row=0, column=0, padx=5, pady=5, sticky="e")
+        self.save_btn.state(["disabled"])
         self.time_info_var.set("0:00:00")
         self.path_info_var.set("")
 
@@ -367,7 +382,13 @@ class App:
     def _is_recording(self):
         return self.timer and not self.timer.finished.is_set()
 
+    def _focus_in_entry(self):
+        widget = self.root.focus_get()
+        return isinstance(widget, (tk.Entry, ttk.Entry))
+
     def on_key_click(self, keysym):
+        if self._focus_in_entry():
+            return
         if keysym == "s":
             if self._is_recording():
                 self.on_cancel()
@@ -377,6 +398,8 @@ class App:
             self.record_event(keysym, self.short_mapping)
 
     def on_key_long_click(self, keysym):
+        if self._focus_in_entry():
+            return
         if self._is_recording():
             self.record_event(keysym, self.long_mapping)
 
@@ -384,38 +407,45 @@ class App:
         try:
             path = self.run.save()
             self.path_info_var.set(f"Autosaved to: {str(path)}")
-            self.save_btn.grid(row=0, column=2, padx=5)
+            self.save_btn.state(["!disabled"])
         except FileNotFoundError:
             self.path_info_var.set("Failed to save file. Please check the save directory.")
 
         self.cancel_btn.grid_forget()
-        self.start_btn.grid(row=0, column=0, padx=5)
+        self.start_btn.grid(row=0, column=0, padx=5, pady=5, sticky="e")
         self.timer.cancel()
 
     def create_bottom(self):
-        frame = ttk.Frame(self.root)
+        frame = ttk.Frame(self.root, style="Card.TFrame")
 
-        self.start_btn = tk.Button(frame, text="Start", command=self.on_start,
+        time_label = ttk.Label(frame, textvariable=self.time_info_var, style="Timer.Card.TLabel")
+        self.time_info_var.set("0:00:00")
+        time_label.pack(pady=(12, 6))
+
+        btn_row = ttk.Frame(frame, style="Card.TFrame")
+        btn_row.columnconfigure(0, weight=1)
+        btn_row.columnconfigure(1, weight=1)
+
+        self.start_btn = tk.Button(btn_row, text="Start (S)", command=self.on_start,
                                    bg=COLORS["start"], activebackground=COLORS["start_active"],
                                    fg="white", activeforeground="white",
-                                   font=(FONT, 11, "bold"), width=8, relief="flat", cursor="hand2")
-        self.start_btn.grid(row=0, column=0, padx=5, pady=5)
+                                   font=(FONT, 11, "bold"), width=10, relief="flat", cursor="hand2")
+        self.start_btn.grid(row=0, column=0, padx=5, pady=5, sticky="e")
 
-        self.cancel_btn = tk.Button(frame, text="Stop", command=self.on_cancel,
+        self.cancel_btn = tk.Button(btn_row, text="Stop (S)", command=self.on_cancel,
                                     bg=COLORS["stop"], activebackground=COLORS["stop_active"],
                                     fg="white", activeforeground="white",
-                                    font=(FONT, 11, "bold"), width=8, relief="flat", cursor="hand2")
+                                    font=(FONT, 11, "bold"), width=10, relief="flat", cursor="hand2")
 
-        time_label = ttk.Label(frame, textvariable=self.time_info_var, style="Timer.TLabel")
-        self.time_info_var.set("0:00:00")
-        time_label.grid(row=0, column=1, padx=15)
+        self.save_btn = ttk.Button(btn_row, text="Save As", command=self.save_file, state="disabled")
+        self.save_btn.grid(row=0, column=1, padx=5, pady=5, sticky="w")
 
-        self.save_btn = ttk.Button(frame, text="Save As", command=self.save_file)
+        btn_row.pack(fill="x", padx=10)
 
-        path_label = ttk.Label(frame, textvariable=self.path_info_var, style="Muted.TLabel")
-        path_label.grid(row=1, column=0, columnspan=3, pady=(2, 0))
+        path_label = ttk.Label(frame, textvariable=self.path_info_var, style="Muted.Card.TLabel")
+        path_label.pack(pady=(2, 8))
 
-        frame.pack(padx=10, pady=(5, 10))
+        frame.pack(fill="x", padx=10, pady=(5, 10))
         return frame
 
 

@@ -1,5 +1,7 @@
 # DMP
 
+![](docs/img.png)
+
 ## Installation
 To install the DMP tool, the easiest way is to use `uv` - a tool to manage your python installation and tools. 
 You can find the installation instructions for `uv` here: https://docs.astral.sh/uv/getting-started/installation/
