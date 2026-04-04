@@ -2,10 +2,10 @@ import json
 import os
 import time
 import tkinter as tk
+from tkinter import ttk
 import sys
 from pathlib import Path
 
-import customtkinter as ctk
 import datetime
 from threading import Timer
 from tkinter import filedialog
@@ -13,10 +13,6 @@ from tkinter import filedialog
 APP_NAME = "dmp"
 
 config = []
-
-ctk.set_appearance_mode("dark")
-ctk.set_default_color_theme("blue")
-ctk.deactivate_automatic_dpi_awareness()
 
 
 class Run:
@@ -135,15 +131,15 @@ def save_config(entry_guis: list):
 
 def add_entry_row(frame, row, entry_guis: list, key_text="", short_text="", long_text=""):
 
-    e1 = ctk.CTkEntry(frame, width=40, placeholder_text="Key")
+    e1 = ttk.Entry(frame, width=3)
     e1.insert(0, key_text)
     e1.grid(row=row, column=0, padx=(0, 5), pady=3)
 
-    e2 = ctk.CTkEntry(frame, width=160, placeholder_text="Short press")
+    e2 = ttk.Entry(frame, width=20)
     e2.grid(row=row, column=1, padx=5, pady=3)
     e2.insert(0, short_text)
 
-    e3 = ctk.CTkEntry(frame, width=160, placeholder_text="Long press")
+    e3 = ttk.Entry(frame, width=20)
     e3.grid(row=row, column=2, padx=5, pady=3)
     e3.insert(0, long_text)
 
@@ -155,7 +151,7 @@ def add_entry_row(frame, row, entry_guis: list, key_text="", short_text="", long
         del_btn.grid_remove()
         save_config(entry_guis)
 
-    del_btn = ctk.CTkButton(frame, text="Delete", width=60, fg_color="gray40", hover_color="gray30", command=remove)
+    del_btn = ttk.Button(frame, text="Delete", command=remove)
     del_btn.grid(row=row, column=3, padx=(5, 0), pady=3)
 
     e1.bind("<KeyRelease>", lambda _: save_config(entry_guis))
@@ -172,7 +168,7 @@ def update_time(string_var, start):
 
 class App:
     def __init__(self):
-        self.root = ctk.CTk()
+        self.root = tk.Tk()
         self.root.title("DMP")
         self.root.geometry("520x540")
         self.root.minsize(480, 400)
@@ -224,11 +220,11 @@ class App:
         self._prompt_save_dir()
 
     def create_dir_picker(self):
-        frame = ctk.CTkFrame(self.root)
+        frame = ttk.Frame(self.root)
 
-        ctk.CTkLabel(frame, text="Save to:", font=ctk.CTkFont(weight="bold")).pack(side="left", padx=(10, 5))
-        ctk.CTkLabel(frame, textvariable=self.save_dir_var).pack(side="left", fill="x", expand=True)
-        ctk.CTkButton(frame, text="Change", width=70, command=self._change_save_dir).pack(side="right", padx=10)
+        ttk.Label(frame, text="Autosave directory:", font=("TkDefaultFont", 10, "bold")).pack(side="left", padx=(10, 5))
+        ttk.Label(frame, textvariable=self.save_dir_var).pack(side="left", fill="x", expand=True)
+        ttk.Button(frame, text="Change", command=self._change_save_dir).pack(side="right", padx=10)
 
         frame.pack(fill="x", padx=10, pady=(10, 0))
         return frame
@@ -237,24 +233,27 @@ class App:
         cfg = load_config()
         data = cfg["keys"]
 
-        frame = ctk.CTkFrame(self.root)
-        ctk.CTkLabel(frame, text="Key", font=ctk.CTkFont(weight="bold")).grid(row=0, column=0, pady=(5, 2))
-        ctk.CTkLabel(frame, text="Short press", font=ctk.CTkFont(weight="bold")).grid(row=0, column=1, pady=(5, 2))
-        ctk.CTkLabel(frame, text="Long press", font=ctk.CTkFont(weight="bold")).grid(row=0, column=2, pady=(5, 2))
+        frame = ttk.Frame(self.root)
+        ttk.Label(frame, text="Key", font=("TkDefaultFont", 10, "bold")).grid(row=0, column=0, pady=(5, 2))
+        ttk.Label(frame, text="Short press", font=("TkDefaultFont", 10, "bold")).grid(row=0, column=1, pady=(5, 2))
+        ttk.Label(frame, text="Long press", font=("TkDefaultFont", 10, "bold")).grid(row=0, column=2, pady=(5, 2))
         self.entry_guis.clear()
         for idx, (key, short, long) in enumerate(data):
             add_entry_row(frame, idx + 1, self.entry_guis, key, short, long)
 
-        add = ctk.CTkButton(frame, text="+ Add", width=60, command=lambda: add_entry_row(frame, len(self.entry_guis) + 1, self.entry_guis))
+        add = ttk.Button(frame, text="+ Add", command=lambda: add_entry_row(frame, len(self.entry_guis) + 1, self.entry_guis))
         add.grid(row=0, column=3, padx=(5, 0), pady=(5, 2))
 
         frame.pack(fill="x", padx=10, pady=(10, 5))
         return frame
 
     def create_middle(self):
-        frame = ctk.CTkFrame(self.root)
-        self.t = ctk.CTkTextbox(frame, height=250, text_color="white")
-        self.t.pack(fill="both", expand=True, padx=5, pady=5)
+        frame = ttk.Frame(self.root)
+        self.t = tk.Text(frame, height=15)
+        self.s = ttk.Scrollbar(frame, command=self.t.yview)
+        self.t.config(yscrollcommand=self.s.set)
+        self.s.pack(side=tk.RIGHT, fill=tk.Y)
+        self.t.pack(side=tk.LEFT, fill="both", expand=True)
         frame.pack(fill="both", expand=True, padx=10, pady=5)
         return frame
 
@@ -311,28 +310,32 @@ class App:
             self.record_event(keysym, self.long_mapping)
 
     def on_cancel(self):
-        path = self.run.save()
-        self.path_info_var.set(f"Autosaved to: {str(path)}")
+        try:
+            path = self.run.save()
+            self.path_info_var.set(f"Autosaved to: {str(path)}")
+            self.save_btn.grid(row=0, column=2, padx=5)
+        except FileNotFoundError:
+            self.path_info_var.set("Failed to save file. Please check the save directory.")
+
         self.cancel_btn.grid_forget()
         self.start_btn.grid(row=0, column=0, padx=5)
-        self.save_btn.grid(row=0, column=2, padx=5)
         self.timer.cancel()
 
     def create_bottom(self):
-        frame = ctk.CTkFrame(self.root)
+        frame = ttk.Frame(self.root)
 
-        self.start_btn = ctk.CTkButton(frame, text="Start", width=80, fg_color="green", hover_color="darkgreen", command=self.on_start)
+        self.start_btn = tk.Button(frame, text="Start", command=self.on_start, bg="green", fg="white", width=8)
         self.start_btn.grid(row=0, column=0, padx=5)
 
-        self.cancel_btn = ctk.CTkButton(frame, text="Stop", width=80, fg_color="firebrick", hover_color="darkred", command=self.on_cancel)
+        self.cancel_btn = tk.Button(frame, text="Stop", command=self.on_cancel, bg="firebrick", fg="white", width=8)
 
-        time_label = ctk.CTkLabel(frame, textvariable=self.time_info_var, font=ctk.CTkFont(size=20, weight="bold"))
+        time_label = ttk.Label(frame, textvariable=self.time_info_var, font=("TkDefaultFont", 18, "bold"))
         self.time_info_var.set("0:00:00")
         time_label.grid(row=0, column=1, padx=15)
 
-        self.save_btn = ctk.CTkButton(frame, text="Save As", width=80, command=self.save_file)
+        self.save_btn = ttk.Button(frame, text="Save As", command=self.save_file)
 
-        path_label = ctk.CTkLabel(frame, textvariable=self.path_info_var, font=ctk.CTkFont(size=12))
+        path_label = ttk.Label(frame, textvariable=self.path_info_var)
         path_label.grid(row=1, column=0, columnspan=3, pady=(2, 0))
 
         frame.pack(padx=10, pady=(5, 10))

@@ -19,7 +19,7 @@ jobs:
         run: uv sync
 
       - name: Build executable
-        run: uv run pyinstaller --onedir --windowed --name dmp --collect-data customtkinter --paths src src/dmp/__main__.py
+        run: uv run pyinstaller --onedir --windowed --name dmp --paths src src/dmp/__main__.py
 
       - name: Create installer output dir
         shell: cmd
@@ -55,7 +55,7 @@ jobs:
       - name: Build executable
         run: |
           uv run pyinstaller --onefile --windowed --name dmp \
-            --collect-data customtkinter \
+            \
             --collect-all tkinter \
             --add-binary "${{ steps.tcltk.outputs.dir }}/libtcl9.0.so:." \
             --add-binary "${{ steps.tcltk.outputs.dir }}/libtcl9tk9.0.so:." \
@@ -80,7 +80,7 @@ jobs:
         run: uv sync
 
       - name: Build app bundle
-        run: uv run pyinstaller --onefile --windowed --name dmp --collect-data customtkinter --paths src src/dmp/__main__.py
+        run: uv run pyinstaller --onefile --windowed --name dmp --paths src src/dmp/__main__.py
 
       - name: Create DMG
         run: |
