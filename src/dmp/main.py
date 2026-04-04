@@ -58,8 +58,14 @@ def apply_theme(root):
               background=[("active", COLORS["primary_dark"]), ("pressed", COLORS["primary_dark"])],
               relief=[("pressed", "flat"), ("!pressed", "flat")])
 
-    style.configure("Delete.TButton", background=COLORS["surface"], foreground=COLORS["muted"],
-                     padding=(8, 4))
+    style.configure("Icon.TButton", background=COLORS["surface"], foreground=COLORS["muted"],
+                     padding=(4, 2), font=(FONT, 12), width=2)
+    style.map("Icon.TButton",
+              background=[("active", COLORS["primary"])],
+              foreground=[("active", COLORS["on_primary"])])
+
+    style.configure("Delete.TButton", background=COLORS["surface"], foreground=COLORS["error"],
+                     padding=(4, 2), font=(FONT, 12), width=2)
     style.map("Delete.TButton",
               background=[("active", COLORS["error"])],
               foreground=[("active", COLORS["on_primary"])])
@@ -189,14 +195,14 @@ def add_entry_row(frame, row, entry_guis: list, key_text="", short_text="", long
 
     e1 = ttk.Entry(frame, width=3)
     e1.insert(0, key_text)
-    e1.grid(row=row, column=0, padx=(0, 5), pady=3)
+    e1.grid(row=row, column=0, padx=(8, 4), pady=3, sticky="ew")
 
-    e2 = ttk.Entry(frame, width=20)
-    e2.grid(row=row, column=1, padx=5, pady=3)
+    e2 = ttk.Entry(frame)
+    e2.grid(row=row, column=1, padx=4, pady=3, sticky="ew")
     e2.insert(0, short_text)
 
-    e3 = ttk.Entry(frame, width=20)
-    e3.grid(row=row, column=2, padx=5, pady=3)
+    e3 = ttk.Entry(frame)
+    e3.grid(row=row, column=2, padx=4, pady=3, sticky="ew")
     e3.insert(0, long_text)
 
     def remove():
@@ -207,8 +213,8 @@ def add_entry_row(frame, row, entry_guis: list, key_text="", short_text="", long
         del_btn.grid_remove()
         save_config(entry_guis)
 
-    del_btn = ttk.Button(frame, text="Delete", style="Delete.TButton", command=remove)
-    del_btn.grid(row=row, column=3, padx=(5, 0), pady=3)
+    del_btn = ttk.Button(frame, text="x", style="Delete.TButton", command=remove)
+    del_btn.grid(row=row, column=3, padx=(4, 8), pady=3)
 
     e1.bind("<KeyRelease>", lambda _: save_config(entry_guis))
     e2.bind("<KeyRelease>", lambda _: save_config(entry_guis))
@@ -291,15 +297,21 @@ class App:
         data = cfg["keys"]
 
         frame = ttk.Frame(self.root, style="Card.TFrame")
-        ttk.Label(frame, text="Key", style="Bold.Card.TLabel").grid(row=0, column=0, pady=(8, 2))
-        ttk.Label(frame, text="Short press", style="Bold.Card.TLabel").grid(row=0, column=1, pady=(8, 2))
-        ttk.Label(frame, text="Long press", style="Bold.Card.TLabel").grid(row=0, column=2, pady=(8, 2))
+        frame.columnconfigure(0, weight=0, minsize=50)
+        frame.columnconfigure(1, weight=1)
+        frame.columnconfigure(2, weight=1)
+        frame.columnconfigure(3, weight=0)
+
+        ttk.Label(frame, text="Key", style="Bold.Card.TLabel").grid(row=0, column=0, padx=(8, 4), pady=(8, 2))
+        ttk.Label(frame, text="Short press", style="Bold.Card.TLabel").grid(row=0, column=1, padx=4, pady=(8, 2))
+        ttk.Label(frame, text="Long press", style="Bold.Card.TLabel").grid(row=0, column=2, padx=4, pady=(8, 2))
         self.entry_guis.clear()
         for idx, (key, short, long) in enumerate(data):
             add_entry_row(frame, idx + 1, self.entry_guis, key, short, long)
 
-        add = ttk.Button(frame, text="+ Add", command=lambda: add_entry_row(frame, len(self.entry_guis) + 1, self.entry_guis))
-        add.grid(row=0, column=3, padx=(5, 0), pady=(5, 2))
+        add = ttk.Button(frame, text="+", style="Icon.TButton",
+                         command=lambda: add_entry_row(frame, len(self.entry_guis) + 1, self.entry_guis))
+        add.grid(row=0, column=3, padx=(4, 8), pady=(5, 2))
 
         frame.pack(fill="x", padx=10, pady=(10, 5))
         return frame
