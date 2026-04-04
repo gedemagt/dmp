@@ -32,7 +32,7 @@ COLORS = {
     "stop": "#F44336",
     "stop_active": "#D32F2F",
 }
-FONT = "Segoe UI" if sys.platform == "win32" else "Helvetica"
+FONT = "Helvetica"
 
 
 def apply_theme(root):
@@ -212,8 +212,8 @@ class KeyBoardListener:
         self._click_listeners = []
         self._long_listeners = []
         if frame:
-            frame.bind("<KeyPress>", self._on_key_down)
-            frame.bind("<KeyRelease>", self._on_key_up)
+            frame.bind_all("<KeyPress>", self._on_key_down)
+            frame.bind_all("<KeyRelease>", self._on_key_up)
 
     def on_click(self, callback):
         self._click_listeners.append(callback)
@@ -291,8 +291,8 @@ class App:
     def __init__(self):
         self.root = tk.Tk()
         self.root.title("DMP")
-        self.root.geometry("520x540")
-        self.root.minsize(480, 400)
+        self.root.geometry("620x640")
+        self.root.minsize(560, 500)
         apply_theme(self.root)
 
         self.t = None
@@ -322,10 +322,10 @@ class App:
         self.keyboard.on_click(self.on_key_click)
         self.keyboard.on_long_click(self.on_key_long_click)
 
-        self.dir_frame = self.create_dir_picker()
         self.top_frame = self.create_top()
         self.mid_frame = self.create_middle()
         self.bot_frame = self.create_bottom()
+        self.dir_frame = self.create_dir_picker()
 
     def runloop(self):
         self.root.mainloop()
@@ -354,11 +354,11 @@ class App:
         )
         dir_label.pack(side="left", fill="x", expand=True)
         dir_label.bind("<Configure>", lambda e: dir_label.configure(wraplength=e.width))
-        ttk.Button(frame, text="Change", command=self._change_save_dir).pack(
-            side="right", padx=10, pady=6
-        )
+        ttk.Button(
+            frame, text="...", style="Icon.TButton", command=self._change_save_dir
+        ).pack(side="right", padx=10, pady=6)
 
-        frame.pack(fill="x", padx=10, pady=(10, 0))
+        frame.pack(fill="x", padx=10, pady=(10, 10))
         return frame
 
     def create_top(self):
